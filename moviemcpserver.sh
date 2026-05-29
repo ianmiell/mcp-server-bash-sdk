@@ -30,7 +30,6 @@ tool_get_movies() {
 ]
 EOF
     )
-
     echo "$movies"
     return 0
 }
@@ -40,14 +39,10 @@ EOF
 # Success: Echo JSON result and return 0
 # Error: Echo error message and return 1
 tool_book_ticket() {
-    local args
+    local args movie_id show_time num_tickets total_price booking_info
     args="$1"
-
-    local movie_id
     movie_id=$(echo "$args" | jq -r '.movieId')
-    local show_time
     show_time=$(echo "$args" | jq -r '.showTime')
-    local num_tickets
     num_tickets=$(echo "$args" | jq -r '.numTickets')
 
     # Simple validation with direct error messages
@@ -77,9 +72,7 @@ tool_book_ticket() {
     fi
 
     # Generate booking confirmation
-    local total_price
     total_price=$(echo "$num_tickets * 12.99" | bc)
-    local booking_info
     booking_info="{\"bookingId\": \"BK$(date +%s)\", \"movieId\": $movie_id, \"showTime\": \"$show_time\", \"numTickets\": $num_tickets, \"totalPrice\": $total_price}"
     echo "$booking_info"
     return 0
@@ -90,12 +83,9 @@ tool_book_ticket() {
 # Success: Echo validation result and return 0
 # Error: Echo error message and return 1
 tool_validate_age() {
-    local args
+    local args age movie_rating
     args="$1"
-
-    local age
     age=$(echo "$args" | jq -r '.age')
-    local movie_rating
     movie_rating=$(echo "$args" | jq -r '.movieRating')
 
     # Parameter validation (treated as errors)

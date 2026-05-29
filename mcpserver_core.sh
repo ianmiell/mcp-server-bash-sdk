@@ -18,10 +18,8 @@ log() {
     level="$1"
     message="$2"
     timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-
     # Create logs directory if it doesn't exist
     mkdir -p "$(dirname "$MCP_LOG_FILE")"
-
     # Append log message to log file
     echo "[$timestamp] [$level] $message" >>"$MCP_LOG_FILE"
 }
@@ -44,52 +42,39 @@ read_json_file() {
 
 # Function to handle MCP initialize method
 handle_initialize() {
-    local id
+    local id result
     id="$1"
-
     # Use the configuration from the specified config file
-    local result
     result=$(read_json_file "$MCP_CONFIG_FILE")
-
     create_response "$id" "$result" ""
 }
 
 # Function to list available tools
 handle_tools_list() {
-    local id="$1"
-
+    local id result
+    id="$1"
     # Read tools list from JSON file
-    local result
     result=$(read_json_file "$MCP_TOOLS_LIST_FILE")
     create_response "$id" "$result" ""
 }
 
 # Function to handle tool calls - delegates to tool implementations
 handle_tools_call() {
-    local id
-    local params
+    local id params tool_name arguments result error content
     id="$1"
     params="$2"
-
-    local tool_name
-    local arguments
     tool_name=$(echo "$params" | jq -r '.name')
     arguments=$(echo "$params" | jq '.arguments // {}')
-    local result error content
-
     # Log the tool being called
     log "INFO" "Tool call: $tool_name with arguments: $(echo "$arguments" | jq -c '.')"
-
     # Validate tool name format (alphanumeric and underscores only)
     if ! [[ "$tool_name" =~ ^[a-zA-Z0-9_]+$ ]]; then
         create_error_response "$id" -32600 "Invalid tool name format"
         return
     fi
-
     # Call the function from the main script if it exists
     if type "tool_${tool_name}" &>/dev/null; then
         # Call the specific tool function from main script
-
         # Check if we got an error
         if ! content=$(tool_"${tool_name}" "$arguments"); then
             # Simple error handling - use the content as error message if available
@@ -102,17 +87,14 @@ handle_tools_call() {
             create_error_response "$id" -32603 "$error_message"
             return
         fi
-
     else
         # Read error template for unknown tool
         create_error_response "$id" -32601 "Tool not found: $tool_name"
         return
     fi
-
     content=$(echo "$content" | tr '\n' ' ')
     # Use jq to escape the string
     stringified_content=$(echo "$content" | jq -R -s '.')
-
     # Then build the response structure with the stringified content
     result="{
         \"content\": [{
@@ -120,7 +102,6 @@ handle_tools_call() {
             \"text\": $stringified_content
         }]
     }"
-
     create_response "$id" "$result" ""
 }
 
@@ -128,54 +109,38 @@ handle_tools_call() {
 
 # Function to create a JSON-RPC 2.0 response
 create_response() {
-    local id
-    local result
-    local error
-    local response
+    local id result error response formatted_response
     id="$1"
     result="$2"
     error="$3"
-    response
-
     if [[ -n "$error" ]]; then
         response="{\"jsonrpc\": \"2.0\", \"error\": $error, \"id\": $id}"
     else
         response="{\"jsonrpc\": \"2.0\", \"result\": $result, \"id\": $id}"
     fi
-
     # Ensure the response is properly formatted as a single line JSON with no newlines
-    local formatted_response
     formatted_response=$(echo "$response" | jq -c '.')
-
     # Log the response
     log "RESPONSE" "$formatted_response"
-
     # Output the response
     echo "$formatted_response"
 }
 
 # Function to create a JSON-RPC 2.0 error
 create_error_response() {
-
-    local id
-    local code
-    local errorMessage
-    local message
+    local id code errorMessage message
     id="$1"
     code="$2"
     errorMessage="$3"
     message="{\"code\": $code, \"message\": \"$errorMessage\"}"
     log "ERROR" "$message"
-
     create_response "$id" "null" "$message"
-
 }
 
 # Function to handle notification events (non-responsive)
 handle_notification() {
     local method
     method="$1"
-
     # Process notifications that don't require a response
     case "$method" in
     "notifications/initialized")
@@ -193,52 +158,36 @@ handle_notification() {
 process_request() {
     local input jsonrpc id method params result error
     input="$1"
-
     # First check if message can be ignored
     if [[ -z "$input" ]]; then
         return 0 # Empty message, nothing to output
     fi
-
     # Log the input for processing
     log "REQUEST" "$input"
-
     # Parse the JSON-RPC 2.0 request
     jsonrpc=$(echo "$input" | jq -r '.jsonrpc')
     # Extract the ID exactly as received, preserving its format (string, number, null)
     id=$(echo "$input" | jq -c '.id')
     method=$(echo "$input" | jq -r '.method')
-
     # Log the method being called
     log "INFO" "Processing method: $method (id: $id)"
-
     # Validate JSON-RPC 2.0 version
     if [[ "$jsonrpc" != "2.0" ]]; then
         create_error_response "$id" -32600 "Invalid Request: Not a JSON-RPC 2.0 request"
         return
     fi
-
     # Check if this is a notification event (non-responsive)
     if handle_notification "$method"; then
         return 0 # Notification handled, no response needed
     fi
-
     params=$(echo "$input" | jq '.params')
-
     # Process the method
     case "$method" in
-    # MCP Protocol Methods
-    "initialize")
-        handle_initialize "$id" "$params"
-        ;;
-    "tools/list")
-        handle_tools_list "$id"
-        ;;
-    "tools/call")
-        handle_tools_call "$id" "$params"
-        ;;
-    *)
-        create_error_response "$id" -32601 "Method not found: $method"
-        ;;
+        # MCP Protocol Methods
+        "initialize") handle_initialize "$id" "$params" ;;
+        "tools/list") handle_tools_list "$id" ;;
+        "tools/call") handle_tools_call "$id" "$params" ;;
+        *) create_error_response "$id" -32601 "Method not found: $method" ;;
     esac
 }
 
@@ -267,17 +216,14 @@ process_request() {
 run_mcp_server() {
     # Check if we have jq installed
     if ! command -v jq &>/dev/null; then
-        echo "Error: jq is required but not installed. Install it using: brew install jq" >&2
+        echo "Error: jq is required but not installed. Install it using eg: brew install jq" >&2
         exit 1
     fi
-
     # Continuously read from stdin line by line
     log "INFO" "MCP Server started. Waiting for JSON-RPC 2.0 messages..."
-
     while IFS= read -r line || [[ -n "$line" ]]; do
         # Process the JSON-RPC 2.0 request
         response=$(process_request "$line")
-
         # Output the response if not empty
         if [[ -n "$response" ]]; then
             echo "$response"
