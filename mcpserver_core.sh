@@ -42,6 +42,7 @@ read_json_file() {
 handle_initialize() {
     local id result
     id="$1"
+
     # Use the configuration from the specified config file
     result=$(read_json_file "$MCP_CONFIG_FILE")
     create_response "$id" "$result" ""

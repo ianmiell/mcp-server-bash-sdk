@@ -3,50 +3,39 @@
 # Tests both standard functionality and error conditions
 
 # Always keep logs for easier debugging
-KEEP_LOGS="true"
-
 
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Define a test-specific log file
 export MCP_LOG_FILE="$SCRIPT_DIR/test_mcpserver.log"
+# Set up for moviserver
+MCP_CONFIG_FILE=movieserver_config.json
+MCP_TOOLS_LIST_FILE=movieserver_tools.json
 
 # Source the core MCP server implementation
 # Note: run_mcp_server is only a function defined in mcpserver_core.sh but not executed
 # unless explicitly called
 
- function tool_test_echo() {
-      
-        
-        # Extract text directly using grep to avoid jq parsing issues with multi-line JSON
-        
-          log "tool_test_echo called with: $1"
-
-            local args="$1"
-    
-    local text=$(echo "$args" | jq -r '.text')
-        
-                
-        if [[ -z "$text" ]]; then
-            echo "null"
-            return 1
-        fi
-        
-
-    
-
-        # Simple string output, no JSON formatting needed
-        echo "Hello, $text" 
-        return 0
-    }
-
+function tool_test_echo() {
+    # Extract text directly using grep to avoid jq parsing issues with multi-line JSON
+    log "tool_test_echo called with: $1"
+    local args text
+    args="$1"
+    text=$(echo "$args" | jq -r '.text')
+    if [[ -z "$text" ]]; then
+        echo "null"
+        return 1
+    fi
+    # Simple string output, no JSON formatting needed
+    echo "Hello, $text"
+    return 0
+}
 
 # Source the core server implementation
 source "$SCRIPT_DIR/mcpserver_core.sh"
 
 # Define a simple test tool function
-
 
 # Color codes for terminal output
 GREEN='\033[0;32m'
@@ -61,12 +50,11 @@ FAIL_COUNT=0
 
 # Function to run a test and report the result
 run_test() {
-    local test_name="$1"
-    local test_function="$2"
-    
+    local test_name test_function
+    test_name="$1"
+    test_function="$2"
     TEST_COUNT=$((TEST_COUNT+1))
     echo -e "${YELLOW}Running test: ${test_name}${NC}"
-    
     # Run the test function
     if $test_function; then
         PASS_COUNT=$((PASS_COUNT+1))
@@ -81,14 +69,13 @@ run_test() {
 
 # Function to assert that a string contains another string
 assert_contains() {
-    local haystack="$1"
-    local needle="$2"
-    local message="$3"
-    
+    local haystack needle message haystack_nospace needle_nospace
+    haystack="$1"
+    needle="$2"
+    message="$3"
     # Remove all spaces from haystack and needle for comparison
-    local haystack_nospace=$(echo "$haystack" | tr -d ' ')
-    local needle_nospace=$(echo "$needle" | tr -d ' ')
-    
+    haystack_nospace=$(echo "$haystack" | tr -d ' ')
+    needle_nospace=$(echo "$needle" | tr -d ' ')
     if [[ "$haystack_nospace" == *"$needle_nospace"* ]]; then
         return 0
     else
@@ -101,157 +88,122 @@ assert_contains() {
 
 # Test the initialize method
 test_handle_initialize() {
-    local id="1"
-    local params='{"clientInfo": {"name": "TestClient"}, "capabilities": {}, "protocolVersion": "0.1.0"}'
-    local response
-    
+    local id params response
+    id="1"
+    #params='{"clientInfo": {"name": "TestClient"}, "capabilities": {}, "protocolVersion": "0.1.0"}'
+    params='{"clientInfo": {"name": "TestClient"}, "capabilities": {}, "protocolVersion": "0.1.0"}'
     response=$(handle_initialize "$id" "$params")
-    
     assert_contains "$response" '"jsonrpc": "2.0"' "Response should be JSON-RPC 2.0" || return 1
     assert_contains "$response" '"protocolVersion"' "Response should include protocol version" || return 1
     assert_contains "$response" '"serverInfo"' "Response should include server info" || return 1
-    
     return 0
 }
 
 # Test the tools/call method with our test_echo tool
 test_handle_tools_call() {
-    
-    local id="2"
+    local id response params request
+    id="2"
     # Format params exactly as seen in mcpserver.log - single line JSON in the right format
-    
-    local response
-
     # Debug output
     echo "Starting test_handle_tools_call"
-
-
-    
     # Define the test tool function - following pattern from moviemcpserver.sh
-
-    
     # Call the process_request function with proper JSON-RPC formatted request
     echo "Calling handle_tools_call with id=$id and params=$params" >&2
-    local params="{'name':'test_echo','arguments':{'text':'hello'}"
-  #  [2025-05-31 08:22:07] [REQUEST] {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"book_ticket","arguments":{"movieId":4,"showTime":"11:30","numTickets":1},"_meta":{"progressToken":"0b35d562-1d24-40b1-8d30-99849fb7b83f"}}}
-# 
+    params="{'name':'test_echo','arguments':{'text':'hello'}"
+    # [2025-05-31 08:22:07] [REQUEST] {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"book_ticket","arguments":{"movieId":4,"showTime":"11:30","numTickets":1},"_meta":{"progressToken":"0b35d562-1d24-40b1-8d30-99849fb7b83f"}}}
+#
     # Format the request exactly like in mcpserver.log - as a complete JSON-RPC message
-    local request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/call\",\"params\":{\"name\":\"test_echo\",\"arguments\":{\"text\":\"MCP!\"}}}"
-
-
+    request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/call\",\"params\":{\"name\":\"test_echo\",\"arguments\":{\"text\":\"MCP!\"}}}"
     # //{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_movies","arguments":{},"_meta":{"progressToken":"1027fb9f-9836-42ca-b3fa-d972a9b92c03"}}}
-
     echo "JSON-RPC request: $request" >&2
-    
     # Use process_request which will parse the JSON-RPC request and call handle_tools_call
     response=$(process_request "$request")
     echo "Response from JSON-RPC request: $response" >&2
-    
     # Add debugging info for empty response
     if [[ -z "$response" ]]; then
         echo "WARNING: Empty response received!" >&2
         return 1
     fi
-    
     # Verify response
     assert_contains "$response" '"jsonrpc": "2.0"' "Response should be JSON-RPC 2.0" || return 1
     assert_contains "$response" '"content"' "Response should include content" || return 1
     assert_contains "$response" 'MCP' "Response should include echoed text" || return 1
-    
     return 0
 }
 
 # Test the tools/list method
 test_handle_tools_list() {
-    local id="3"
-    local request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/list\"}"
-    local response
-    
+    local id request response
+    id="3"
+    request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/list\"}"
     response=$(process_request "$request")
-    
     assert_contains "$response" '"jsonrpc": "2.0"' "Response should be JSON-RPC 2.0" || return 1
     assert_contains "$response" '"id": 3' "Response should include correct id" || return 1
     assert_contains "$response" '"tools"' "Response should include tools array" || return 1
-    
     return 0
 }
 
 # Test handling of notifications/initialized notification
 test_handle_notification() {
-    local request="{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}"
-    local response
-    
+    local request response
+    request="{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}"
     response=$(process_request "$request")
-    
     # For notifications, response should be empty
     if [[ -n "$response" ]]; then
         echo -e "${RED}Notification should not return a response${NC}"
         return 1
     fi
-    
     return 0
 }
 
 # Test error: invalid JSON-RPC version
 test_invalid_jsonrpc_version() {
-    local id="4"
-    local request="{\"jsonrpc\":\"1.0\",\"id\":$id,\"method\":\"initialize\"}"
-    local response
-    
+    local id request response
+    id="4"
+    request="{\"jsonrpc\":\"1.0\",\"id\":$id,\"method\":\"initialize\"}"
     response=$(process_request "$request")
-    
     assert_contains "$response" '"error"' "Response should include error" || return 1
     assert_contains "$response" '"code": -32600' "Error code should be -32600" || return 1
     assert_contains "$response" '"message": "Invalid Request' "Error message should mention invalid request" || return 1
-    
     return 0
 }
 
 # Test error: method not found
 test_method_not_found() {
-    local id="5"
-    local request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"non_existent_method\"}"
-    local response
-    
+    local id request response
+    id="5"
+    request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"non_existent_method\"}"
     response=$(process_request "$request")
-    
     assert_contains "$response" '"error"' "Response should include error" || return 1
     assert_contains "$response" '"code": -32601' "Error code should be -32601" || return 1
     assert_contains "$response" '"message": "Method not found' "Error message should mention method not found" || return 1
-    
     return 0
 }
 
 # Test error: invalid tool name
 test_invalid_tool_name() {
-    local id="6"
-    local request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/call\",\"params\":{\"name\":\"invalid-tool-name!\",\"arguments\":{}}}"
-    local response
-    
+    local id request response
+    id="6"
+    request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/call\",\"params\":{\"name\":\"invalid-tool-name!\",\"arguments\":{}}}"
     response=$(process_request "$request")
-    
     assert_contains "$response" '"error"' "Response should include error" || return 1
     assert_contains "$response" '"code": -32600' "Error code should be -32600" || return 1
     assert_contains "$response" '"message": "Invalid tool name format' "Error message should mention invalid tool name" || return 1
-    
     return 0
 }
 
 # Test error: tool execution error
 test_tool_execution_error() {
+    local id response request
     local id="7"
     # Our test_echo tool actually returns a result for empty text (null),
     # so we need to use a different tool that doesn't exist for this test
-    local request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/call\",\"params\":{\"name\":\"non_existent_tool\",\"arguments\":{}}}"
-    local response
-    
+    request="{\"jsonrpc\":\"2.0\",\"id\":$id,\"method\":\"tools/call\",\"params\":{\"name\":\"non_existent_tool\",\"arguments\":{}}}"
     response=$(process_request "$request")
-    
     assert_contains "$response" '"error"' "Response should include error" || return 1
     # The error code should be -32601 for "Method not found"
     assert_contains "$response" '"code": -32601' "Error code should be -32601" || return 1
     assert_contains "$response" '"message": "Tool not found' "Error message should mention tool not found" || return 1
-    
     return 0
 }
 
@@ -269,16 +221,11 @@ display_test_logs() {
 }
 
 
-
-
-
 # Main test execution
 main() {
     echo -e "\n${YELLOW}===== Running Simplified MCP Core Server Tests =====${NC}\n"
-    
     # Clear log file before running tests
     > "$MCP_LOG_FILE"
-    
     # Run the simplified test suite
     run_test "Handle Initialize Test" test_handle_initialize
     run_test "Handle Tools Call Test" test_handle_tools_call
@@ -288,15 +235,12 @@ main() {
     run_test "Method Not Found Test" test_method_not_found
     run_test "Invalid Tool Name Test" test_invalid_tool_name
     run_test "Tool Execution Error Test" test_tool_execution_error
-    
     # Print summary
     echo -e "\n${YELLOW}===== Test Summary =====${NC}"
     echo -e "Total tests: ${TEST_COUNT}"
     echo -e "${GREEN}Tests passed: ${PASS_COUNT}${NC}"
-    
     # Display test logs
     display_test_logs
-    
     if [[ $FAIL_COUNT -gt 0 ]]; then
         echo -e "${RED}Tests failed: ${FAIL_COUNT}${NC}"
         exit 1
