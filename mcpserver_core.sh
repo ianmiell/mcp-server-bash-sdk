@@ -5,16 +5,19 @@
 # Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Configuration paths - overridable by implementations
+## Configuration paths - overridable by implementations
 MCP_CONFIG_FILE="${MCP_CONFIG_FILE:-"$SCRIPT_DIR/assets/mcpserverconfig.json"}"
 MCP_TOOLS_LIST_FILE="${MCP_TOOLS_LIST_FILE:-"$SCRIPT_DIR/assets/tools_list.json"}"
 MCP_LOG_FILE="${MCP_LOG_FILE:-"$SCRIPT_DIR/mcpserver.log"}"
 
 # Function to log messages to file
 log() {
-    local level="$1"
-    local message="$2"
-    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    local level
+    local message
+    local timestamp
+    level="$1"
+    message="$2"
+    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
 
     # Create logs directory if it doesn't exist
     mkdir -p "$(dirname "$MCP_LOG_FILE")"
@@ -25,7 +28,8 @@ log() {
 
 # Function to read a JSON file and convert it to a single line
 read_json_file() {
-    local file_path="$1"
+    local file_path
+    file_path="$1"
     if [[ -f "$file_path" ]]; then
         # Read the file and remove all newlines and unnecessary whitespace
         jq -c '.' "$file_path"
@@ -40,16 +44,12 @@ read_json_file() {
 
 # Function to handle MCP initialize method
 handle_initialize() {
-    local id="$1"
-    local params="$2"
-
-    # Parse client info and capabilities from params
-    local client_info=$(echo "$params" | jq '.clientInfo')
-    local client_capabilities=$(echo "$params" | jq '.capabilities')
-    local client_protocol_version=$(echo "$params" | jq -r '.protocolVersion')
+    local id
+    id="$1"
 
     # Use the configuration from the specified config file
-    local result=$(read_json_file "$MCP_CONFIG_FILE")
+    local result
+    result=$(read_json_file "$MCP_CONFIG_FILE")
 
     create_response "$id" "$result" ""
 }
@@ -59,17 +59,22 @@ handle_tools_list() {
     local id="$1"
 
     # Read tools list from JSON file
-    local result=$(read_json_file "$MCP_TOOLS_LIST_FILE")
+    local result
+    result=$(read_json_file "$MCP_TOOLS_LIST_FILE")
     create_response "$id" "$result" ""
 }
 
 # Function to handle tool calls - delegates to tool implementations
 handle_tools_call() {
-    local id="$1"
-    local params="$2"
+    local id
+    local params
+    id="$1"
+    params="$2"
 
-    local tool_name=$(echo "$params" | jq -r '.name')
-    local arguments=$(echo "$params" | jq '.arguments // {}')
+    local tool_name
+    local arguments
+    tool_name=$(echo "$params" | jq -r '.name')
+    arguments=$(echo "$params" | jq '.arguments // {}')
     local result error content
 
     # Log the tool being called
@@ -84,10 +89,9 @@ handle_tools_call() {
     # Call the function from the main script if it exists
     if type "tool_${tool_name}" &>/dev/null; then
         # Call the specific tool function from main script
-        content=$(tool_${tool_name} "$arguments")
 
         # Check if we got an error
-        if [[ $? -ne 0 ]]; then
+        if ! content=$(tool_"${tool_name}" "$arguments"); then
             # Simple error handling - use the content as error message if available
             local error_message="Tool execution error"
             if [[ -n "$content" && "$content" != "null" ]]; then
@@ -124,10 +128,14 @@ handle_tools_call() {
 
 # Function to create a JSON-RPC 2.0 response
 create_response() {
-    local id="$1"
-    local result="$2"
-    local error="$3"
+    local id
+    local result
+    local error
     local response
+    id="$1"
+    result="$2"
+    error="$3"
+    response
 
     if [[ -n "$error" ]]; then
         response="{\"jsonrpc\": \"2.0\", \"error\": $error, \"id\": $id}"
@@ -136,7 +144,8 @@ create_response() {
     fi
 
     # Ensure the response is properly formatted as a single line JSON with no newlines
-    local formatted_response=$(echo "$response" | jq -c '.')
+    local formatted_response
+    formatted_response=$(echo "$response" | jq -c '.')
 
     # Log the response
     log "RESPONSE" "$formatted_response"
@@ -148,10 +157,14 @@ create_response() {
 # Function to create a JSON-RPC 2.0 error
 create_error_response() {
 
-    local id="$1"
-    local code="$2"
-    local errorMessage="$3"
-    local message="{\"code\": $code, \"message\": \"$errorMessage\"}"
+    local id
+    local code
+    local errorMessage
+    local message
+    id="$1"
+    code="$2"
+    errorMessage="$3"
+    message="{\"code\": $code, \"message\": \"$errorMessage\"}"
     log "ERROR" "$message"
 
     create_response "$id" "null" "$message"
@@ -160,7 +173,8 @@ create_error_response() {
 
 # Function to handle notification events (non-responsive)
 handle_notification() {
-    local method="$1"
+    local method
+    method="$1"
 
     # Process notifications that don't require a response
     case "$method" in
@@ -177,8 +191,8 @@ handle_notification() {
 
 # Function to process a JSON-RPC 2.0 request
 process_request() {
-    local input="$1"
-    local jsonrpc version id method params result error
+    local input jsonrpc id method params result error
+    input="$1"
 
     # First check if message can be ignored
     if [[ -z "$input" ]]; then
