@@ -6,8 +6,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 ## Configuration paths - overridable by implementations
-MCP_CONFIG_FILE="${MCP_CONFIG_FILE:-"$SCRIPT_DIR/assets/mcpserverconfig.json"}"
-MCP_TOOLS_LIST_FILE="${MCP_TOOLS_LIST_FILE:-"$SCRIPT_DIR/assets/tools_list.json"}"
+MCP_CONFIG_FILE="${MCP_CONFIG_FILE:-"$SCRIPT_DIR/mcpserverconfig.json"}"
+MCP_TOOLS_LIST_FILE="${MCP_TOOLS_LIST_FILE:-"$SCRIPT_DIR/tools_list.json"}"
 MCP_LOG_FILE="${MCP_LOG_FILE:-"$SCRIPT_DIR/mcpserver.log"}"
 
 # Function to log messages to file
@@ -18,8 +18,6 @@ log() {
     level="$1"
     message="$2"
     timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-    # Create logs directory if it doesn't exist
-    mkdir -p "$(dirname "$MCP_LOG_FILE")"
     # Append log message to log file
     echo "[$timestamp] [$level] $message" >>"$MCP_LOG_FILE"
 }

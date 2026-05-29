@@ -2,9 +2,9 @@
 # Movie business logic implementation
 
 # Override configuration paths BEFORE sourcing the core
-MCP_CONFIG_FILE="$(dirname "${BASH_SOURCE[0]}")/assets/movieserver_config.json"
-MCP_TOOLS_LIST_FILE="$(dirname "${BASH_SOURCE[0]}")/assets/movieserver_tools.json"
-MCP_LOG_FILE="$(dirname "${BASH_SOURCE[0]}")/logs/movieserver.log"
+MCP_CONFIG_FILE="$(dirname "${BASH_SOURCE[0]}")/movieserver_config.json"
+MCP_TOOLS_LIST_FILE="$(dirname "${BASH_SOURCE[0]}")/movieserver_tools.json"
+MCP_LOG_FILE="$(dirname "${BASH_SOURCE[0]}")/movieserver.log"
 
 # MCP Server Tool Function Guidelines:
 # 1. Name all tool functions with prefix "tool_" followed by the same name defined in tools_list.json

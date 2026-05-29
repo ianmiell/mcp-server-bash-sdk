@@ -1,6 +1,6 @@
 # 🐚 MCP Server in Bash
 
-A lightweight, zero-overhead implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server in pure Bash. 
+A lightweight, zero-overhead implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server in pure Bash.
 
 **Why?** Most MCP servers are just API wrappers with schema conversion. This implementation provides a zero-overhead alternative to Node.js, Python, or other heavy runtimes.
 
@@ -70,7 +70,7 @@ echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "get_movies"
 
 - **mcpserver_core.sh**: Handles JSON-RPC and MCP protocol
 - **moviemcpserver.sh**: Contains business logic functions
-- **assets/**: JSON configuration files
+- `*.json` : JSON configuration files
 
 ---
 
@@ -95,9 +95,9 @@ When implementing tool functions for the MCP server, follow these guidelines:
 # Weather API implementation
 
 # Override configuration paths BEFORE sourcing the core
-MCP_CONFIG_FILE="$(dirname "${BASH_SOURCE[0]}")/assets/weatherserver_config.json"
-MCP_TOOLS_LIST_FILE="$(dirname "${BASH_SOURCE[0]}")/assets/weatherserver_tools.json"
-MCP_LOG_FILE="$(dirname "${BASH_SOURCE[0]}")/logs/weatherserver.log"
+MCP_CONFIG_FILE="$(dirname "${BASH_SOURCE[0]}")/weatherserver_config.json"
+MCP_TOOLS_LIST_FILE="$(dirname "${BASH_SOURCE[0]}")/weatherserver_tools.json"
+MCP_LOG_FILE="$(dirname "${BASH_SOURCE[0]}")/weatherserver.log"
 
 # MCP Server Tool Function Guidelines:
 # 1. Name all tool functions with prefix "tool_" followed by the same name defined in tools_list.json
@@ -119,13 +119,13 @@ API_KEY="${MCP_API_KEY:-default_key}"
 tool_get_weather() {
   local args="$1"
   local location=$(echo "$args" | jq -r '.location')
-  
+
   # Parameter validation
   if [[ -z "$location" ]]; then
     echo "Missing required parameter: location"
     return 1
   fi
-  
+
   # Call external API
   local weather=$(curl -s "https://api.example.com/weather?location=$location&apikey=$API_KEY")
   echo "$weather"
@@ -137,7 +137,7 @@ tool_get_weather() {
 run_mcp_server "$@"
 ```
 
-2. **Create `assets/weatherserver_tools.json`**
+2. **Create `weatherserver_tools.json`**
 
 ```json
 {
@@ -160,7 +160,7 @@ run_mcp_server "$@"
 }
 ```
 
-3. **Create `assets/weatherserver_config.json`**
+3. **Create `weatherserver_config.json`**
 
 ```json
 {
