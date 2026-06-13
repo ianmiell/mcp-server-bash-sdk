@@ -6,12 +6,13 @@
 
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 
 # Define a test-specific log file
 export MCP_LOG_FILE="$SCRIPT_DIR/test_mcpserver.log"
-# Set up for moviserver
-MCP_CONFIG_FILE=movieserver_config.json
-MCP_TOOLS_LIST_FILE=movieserver_tools.json
+# Set up for movieserver
+MCP_CONFIG_FILE="$PROJECT_DIR/movieserver_config.json"
+MCP_TOOLS_LIST_FILE="$PROJECT_DIR/movieserver_tools.json"
 
 # Source the core MCP server implementation
 # Note: run_mcp_server is only a function defined in mcpserver_core.sh but not executed
@@ -33,7 +34,7 @@ function tool_test_echo() {
 }
 
 # Source the core server implementation
-source "$SCRIPT_DIR/mcpserver_core.sh"
+source "$PROJECT_DIR/mcpserver_core.sh"
 
 # Define a simple test tool function
 
